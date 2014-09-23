@@ -3,6 +3,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "parse.h"
 /*
  * Tokenizer type.  You need to fill in the type as part of your implementation.
@@ -35,8 +36,21 @@ typedef struct TokenizerT_ TokenizerT; // this can actually be on one line like 
 
 TokenizerT *TKCreate(char *separators, char *ts) {
 	TokenizerT *tk = malloc(sizeof(TokenizerT));
+
 	tk->separators = parse_separators(separators, &(tk->seps_size));
-	
+
+	tk->text = malloc(sizeof(char)*strlen(ts)+1);
+	strcpy(tk->text, ts);
+	tk->text_size = strlen(ts);
+	tk->text[tk->text_size] = '\0';
+
+	tk->tokenized = malloc(sizeof(char*)*(tk->text_size)); // max number of tokens is order number of characters in text
+	tk->tokens_size = tk->text_size;					   // so I might as well overallocate and then resize once i'm done
+
+	for (size_t i = 0; i < tk->tokens_size; i++) {
+		tk->tokenized[i] = NULL;
+	}
+
 	return tk;
 }
 
@@ -49,6 +63,13 @@ TokenizerT *TKCreate(char *separators, char *ts) {
 
 void TKDestroy(TokenizerT *tk) {
 	free(tk->separators);
+	free(tk->text);
+	for (size_t i = 0; i < tk->tokens_size; i++) {
+		if (tk->tokenized[i] != NULL) {
+			free(tk->tokenized[i]);
+		}
+	}
+	free(tk->tokenized);
 	free(tk);
 }
 
@@ -64,8 +85,10 @@ void TKDestroy(TokenizerT *tk) {
  * You need to fill in this function as part of your implementation.
  */
 
+// so this is kind of dumb because now i need to keep a counter as part of the tokenizer state
+// i guess it would make sense if i weren't just going to call getnexttoken until it runs out of tokens
 char *TKGetNextToken(TokenizerT *tk) {
-
+	
   return NULL;
 }
 
