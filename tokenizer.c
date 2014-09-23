@@ -2,19 +2,22 @@
  * tokenizer.c
  */
 #include <stdio.h>
-
+#include <stdlib.h>
+#include "parse.h"
 /*
  * Tokenizer type.  You need to fill in the type as part of your implementation.
  */
 
 struct TokenizerT_ {
-	char **separators; // array of strings i.e. ["\n", "\t", ...]
+	char *separators; // array of characters i.e. ["\n", "\t", "a"...] stored as chars
 	char *text; // text to tokenize
 	char **tokenized; // array of tokens
-	// need to store length of all of the above
+	size_t seps_size;
+	size_t text_size;
+	size_t tokens_size;
 };
 
-typedef struct TokenizerT_ TokenizerT;
+typedef struct TokenizerT_ TokenizerT; // this can actually be on one line like typedef struct TokenizerT_ { ...} TokenizerT;
 
 /*
  * TKCreate creates a new TokenizerT object for a given set of separator
@@ -31,8 +34,10 @@ typedef struct TokenizerT_ TokenizerT;
  */
 
 TokenizerT *TKCreate(char *separators, char *ts) {
-
-  return NULL;
+	TokenizerT *tk = malloc(sizeof(TokenizerT));
+	tk->separators = parse_separators(separators, &(tk->seps_size));
+	
+	return tk;
 }
 
 /*
@@ -43,6 +48,8 @@ TokenizerT *TKCreate(char *separators, char *ts) {
  */
 
 void TKDestroy(TokenizerT *tk) {
+	free(tk->separators);
+	free(tk);
 }
 
 /*
@@ -71,6 +78,12 @@ char *TKGetNextToken(TokenizerT *tk) {
  */
 
 int main(int argc, char **argv) {
+	// check argv for errors
+
+	TokenizerT *tk = TKCreate(argv[1], argv[2]);
+
+
+	TKDestroy(tk);
 
   return 0;
 }
