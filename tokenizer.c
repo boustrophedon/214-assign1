@@ -9,9 +9,12 @@
  * Tokenizer type.  You need to fill in the type as part of your implementation.
  */
 
+#define IN 0
+#define OUT 1
+
 struct TokenizerT_ {
 	char *separators; // array of characters i.e. ["\n", "\t", "a"...] stored as chars
-	char *text; // text to tokenize
+	char *parsed_text; // text to tokenize
 	char **tokenized; // array of tokens
 	size_t seps_size;
 	size_t text_size;
@@ -19,6 +22,8 @@ struct TokenizerT_ {
 };
 
 typedef struct TokenizerT_ TokenizerT; // this can actually be on one line like typedef struct TokenizerT_ { ...} TokenizerT;
+
+void TKTokenizeAll(TokenizerT *tk);
 
 /*
  * TKCreate creates a new TokenizerT object for a given set of separator
@@ -39,10 +44,7 @@ TokenizerT *TKCreate(char *separators, char *ts) {
 
 	tk->separators = parse_separators(separators, &(tk->seps_size));
 
-	tk->text = malloc(sizeof(char)*strlen(ts)+1);
-	strcpy(tk->text, ts);
-	tk->text_size = strlen(ts);
-	tk->text[tk->text_size] = '\0';
+	tk->parsed_text = parse_text(ts,tk->separators, tk->seps_size, &(tk->text_size));
 
 	tk->tokenized = malloc(sizeof(char*)*(tk->text_size)); // max number of tokens is order number of characters in text
 	tk->tokens_size = tk->text_size;					   // so I might as well overallocate and then resize once i'm done
@@ -50,9 +52,10 @@ TokenizerT *TKCreate(char *separators, char *ts) {
 	for (size_t i = 0; i < tk->tokens_size; i++) {
 		tk->tokenized[i] = NULL;
 	}
-
+	TKTokenizeAll(tk);
 	return tk;
 }
+
 
 /*
  * TKDestroy destroys a TokenizerT object.  It should free all dynamically
@@ -63,7 +66,7 @@ TokenizerT *TKCreate(char *separators, char *ts) {
 
 void TKDestroy(TokenizerT *tk) {
 	free(tk->separators);
-	free(tk->text);
+	free(tk->parsed_text);
 	for (size_t i = 0; i < tk->tokens_size; i++) {
 		if (tk->tokenized[i] != NULL) {
 			free(tk->tokenized[i]);
@@ -71,6 +74,64 @@ void TKDestroy(TokenizerT *tk) {
 	}
 	free(tk->tokenized);
 	free(tk);
+}
+
+void TKTokenizeAll(TokenizerT *tk) {
+	size_t start = 0;
+	size_t cur = 0;
+	size_t num_tokens = 0;
+
+	int state = OUT;
+
+	for (;cur < tk->text_size; cur++) {
+		char c = tk->parsed_text[cur];
+		if (c == '\0') {
+			if (state == IN) {
+				tk->tokenized[num_tokens] = parse_new_token(tk->parsed_text, start, cur);
+				num_tokens++;
+			}
+			state = OUT;
+		}
+		else {
+			if (state == OUT) {
+				start = cur;
+				state = IN;
+			}
+		}
+	}
+	if (state == IN) {
+		tk->tokenized[num_tokens] = parse_new_token(tk->parsed_text, start, cur);
+		num_tokens++;
+	}
+
+	tk->tokens_size = num_tokens;
+	tk->tokenized = realloc(tk->tokenized, (sizeof(char*))*(tk->tokens_size));
+	
+	for (size_t i = 0; i < tk->tokens_size; i++) {
+		char *cur_token = tk->tokenized[i];
+		size_t cur_size = strlen(cur_token);
+		char *new_token = malloc(sizeof(char)*(cur_size*6)+1);
+		new_token[0] = '\0';
+
+		size_t cur = 0;
+		for (size_t j = 0; j < cur_size; j++) {
+			char c = cur_token[j];
+			if (check_escape(c) == 1) {
+				char *esc = unparse_escape(c);
+				strcat(new_token, esc);
+
+				cur+=8;
+				free(esc);
+			}
+			else {
+				new_token[cur] = c;
+				new_token[cur+1] = '\0';
+				cur++;
+			}
+		}
+		tk->tokenized[i] = realloc(new_token, (sizeof(char)*strlen(new_token)+1));
+		free(cur_token);
+	}
 }
 
 /*
@@ -88,8 +149,7 @@ void TKDestroy(TokenizerT *tk) {
 // so this is kind of dumb because now i need to keep a counter as part of the tokenizer state
 // i guess it would make sense if i weren't just going to call getnexttoken until it runs out of tokens
 char *TKGetNextToken(TokenizerT *tk) {
-	
-  return NULL;
+	return NULL;
 }
 
 /*
@@ -101,10 +161,21 @@ char *TKGetNextToken(TokenizerT *tk) {
  */
 
 int main(int argc, char **argv) {
-	// check argv for errors
+	if (argc < 3) {
+		printf("Too few arguments.\n");
+		return -10;
+	}
+	else if (argc > 3) {
+		printf("Too many arguments.\n");
+		return -11;
+	}
 
 	TokenizerT *tk = TKCreate(argv[1], argv[2]);
 
+	TKTokenizeAll(tk);
+	for (size_t i = 0; i < tk->tokens_size; i++) {
+		printf("%s\n", tk->tokenized[i]);
+	}
 
 	TKDestroy(tk);
 
